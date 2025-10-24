@@ -1,4 +1,5 @@
 # Home Assignment — Backend Software Engineer
+Position: BackEnd-FullStack-Engineer.
 Client: SunPower Corporation — U.S. Renewable Energy Company
 Delivery Date: 27 October 2025
 # SunPowerScope — Carbon Accounting & Solar Compensation API
