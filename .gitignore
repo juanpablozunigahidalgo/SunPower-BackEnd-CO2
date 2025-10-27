@@ -1,24 +1,68 @@
-# Python cache / bytecode
+# =========================
+# GLOBAL IGNORE
+# =========================
+.DS_Store
+Thumbs.db
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.sqlite3
+*.db
 
-# Virtual environments
+# =========================
+# PYTHON / FASTAPI BACKEND
+# =========================
+# Virtual environment
 .venv/
-venv/
 env/
+venv/
+ENV/
 
-# Local environment variables
+# Python cache and build
+build/
+dist/
+*.egg-info/
+*.egg
+*.log
+
+# Local settings and secrets
 .env
+.env.*
+*.local
 
-# SQLite dev database
-sunpower.db
+# Testing / coverage
+.coverage
+.pytest_cache/
+htmlcov/
 
-# VSCode / editor settings (optional safety)
+# IDE and editors
 .vscode/
-*.code-workspace
+.idea/
 
-# OS cruft
-.DS_Store
-Thumbs.db
+# =========================
+# FRONTEND (Vite + React + TypeScript)
+# =========================
+# Dependencies
+sunpower-frontend/node_modules/
+
+# Build output
+sunpower-frontend/dist/
+sunpower-frontend/.vite/
+
+# Editor / cache files
+sunpower-frontend/.DS_Store
+sunpower-frontend/*.log
+
+# Environment and local configs
+sunpower-frontend/.env
+sunpower-frontend/.env.*
+sunpower-frontend/*.local
+
+# =========================
+# OTHER
+# =========================
+# OS / system
+*.swp
+*.swo
+*~
