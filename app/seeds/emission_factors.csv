@@ -1,0 +1,5 @@
+category,unit,factor_kg_per_unit
+electricity,kWh,0.35
+diesel,liter,2.68
+petrol,liter,2.31
+spend,USD,0.00025
