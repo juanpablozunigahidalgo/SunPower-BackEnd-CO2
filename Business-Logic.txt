@@ -1,0 +1,209 @@
+SunPowerScope — Business Logic Overview
+Author: Juan Pablo Zuñiga Hidalgo
+Date: Oct 2025
+
+=================================================
+1. Problem this solves
+=================================================
+
+Companies are under pressure to understand and reduce their carbon footprint.
+
+But:
+- Emissions are spread across messy data sources (electricity bills, fuel use, spend data).
+- It's not obvious how installing solar (or buying into a solar project) reduces their "net" footprint.
+- Leadership teams want one simple number: "How much CO₂ are we responsible for after mitigation?"
+
+SunPowerScope solves that in a focused way:
+1. It calculates a company's emissions.
+2. It calculates how much CO₂ was avoided by solar electricity generation that the company is allocated.
+3. It returns the net result in a transparent way via API and dashboard.
+
+
+=================================================
+2. Core entities in the system
+=================================================
+
+COMPANY
+Represents a customer or business unit we are tracking.
+Fields include:
+- name
+- sector
+- country
+
+ACTIVITY
+Represents something the company did that causes emissions.
+Examples:
+- Electricity consumption (kWh)
+- Diesel consumption (liters)
+- Spend in a category (USD)
+
+Each activity has:
+- company_id
+- category (like "electricity")
+- amount (like 15000)
+- unit (like "kWh")
+- date
+
+EMISSION FACTOR
+A lookup table that tells us:
+"1 unit of this activity = X kg CO₂e"
+
+Example:
+- electricity, kWh → 0.35 kg CO₂e per kWh
+- diesel, liter → 2.68 kg CO₂e per liter
+
+The backend multiplies:
+  activity.amount * emission_factor
+to get kg of CO₂e.
+
+SOLAR PROJECT
+Represents a solar energy installation that generates clean electricity.
+Fields include:
+- capacity_kwp (installed size, kWp)
+- performance_ratio (efficiency factor)
+- peak_sun_hours_per_day
+- grid_factor_kg_per_kwh (carbon intensity of displaced grid electricity)
+- commissioning_date
+
+From these, we estimate how much electricity the project generates in a year, and how much CO₂ that avoids.
+
+SOLAR ALLOCATION
+Links a company to a solar project.
+Fields:
+- company_id
+- project_id
+- allocation_fraction (0.0 – 1.0)
+- start_date
+- end_date
+
+This answers:
+"How much of this solar project's avoided emissions does this company get to claim in this period?"
+
+
+=================================================
+3. How emissions are calculated
+=================================================
+
+For a given company and date range:
+1. We pull all its Activity rows within that period.
+2. For each activity, we find the matching EmissionFactor.
+3. We compute:
+   emissions_kg = amount * factor_kg_per_unit
+
+4. We total these up:
+   - per category (electricity, diesel, etc.)
+   - overall (gross_emissions_kg)
+
+Example:
+If a company used 15,000 kWh and the factor is 0.35 kg/kWh:
+Gross from electricity = 15,000 * 0.35 = 5,250 kg CO₂e
+
+
+=================================================
+4. How solar compensation is calculated
+=================================================
+
+We model a solar project’s avoided emissions with 3 main ideas:
+
+1. Annual energy production (kWh/year)
+   annual_kWh =
+        capacity_kwp
+      * performance_ratio
+      * peak_sun_hours_per_day
+      * 365
+
+2. Avoided emissions (kg CO₂e/year)
+   avoided_emissions_kg =
+        annual_kWh
+      * grid_factor_kg_per_kwh
+
+   Interpretation:
+   "If we didn't generate this solar kWh, you'd pull from the grid,
+    and that grid electricity has carbon intensity X kg/kWh. So we avoided X."
+
+3. Allocation to a company
+   Each SolarAllocation says:
+   - allocation_fraction (e.g. 0.1 = 10% stake)
+   - date range during which the company claims that stake
+
+   We compute overlap between the allocation’s date range and the reporting period.
+   Example: company claims 10% for the full year 2025.
+
+   compensated_kg =
+        avoided_emissions_kg
+      * allocation_fraction
+      * (days_of_overlap / 365)
+
+We sum all allocations for that company in the selected period.
+That's the company’s total "compensated_kg" from solar.
+
+
+=================================================
+5. Net emissions
+=================================================
+
+We report:
+- gross_emissions_kg  (what the company emitted)
+- compensated_kg      (what the company is credited for via solar)
+- net_emissions_kg    (gross - compensated, floored at zero)
+
+Why floored at zero?
+A company can't go "negative" just because they over-allocated solar; for reporting simplicity we stop at 0 instead of saying "-400 tons". This is common in simplified sustainability dashboards.
+
+
+=================================================
+6. What the dashboard shows (business view)
+=================================================
+
+The frontend calls:
+GET /companies/{id}/net-emissions?date_from=...&date_to=...
+
+We then display:
+- Gross emissions (kg CO₂e)
+- Solar compensation (kg CO₂e avoided, from allocated solar)
+- Net emissions after solar
+- Breakdown by category (where are you dirty?)
+
+This tells a sustainability manager:
+- “Here’s our impact.”
+- “Here’s how much our solar program is mitigating.”
+- “Here’s where most of our footprint is actually coming from.”
+
+This tells a commercial stakeholder:
+- “This is the value of buying/allocating our solar capacity.”
+- “This is how we can offer you credible decarbonization, not just marketing talk.”
+
+
+=================================================
+7. Why this is relevant to real companies
+=================================================
+
+1. Companies need audit-friendly logic.
+   - We store raw activity data.
+   - We store explicit emission factors.
+   - We store the solar math.
+   Everything is traceable.
+
+2. Finance / leadership wants KPIs, not raw tables.
+   The `/net-emissions` endpoint turns complexity into a single sustainability KPI.
+
+3. This models the beginning of a real carbon accounting product:
+   - ingest activity data
+   - map to emission factors
+   - attribute renewable energy production
+   - report net impact
+
+This is the core of a climate / ESG reporting engine:
+Clean backend logic + transparent methodology.
+
+
+=================================================
+8. TL;DR for non-technical people
+=================================================
+
+- The backend calculates how polluting a company is.
+- The backend also calculates how much clean solar energy they’re credited for.
+- The frontend shows: Gross CO₂, CO₂ avoided by solar, and Net CO₂.
+
+This is exactly what sustainability SaaS vendors sell:
+"Here is your footprint and how we help you shrink it."
